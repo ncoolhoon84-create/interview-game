@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>면접의 정석 — AI 면접 시뮬레이터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Nanum+Gothic:wght@400;700;800&family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@400;500;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    min-height:100vh;
+    background: var(--bg, #f4f4f2);
+    color: var(--text, #1c1c1c);
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: background .5s ease, color .5s ease;
+    overflow-x:hidden;
+  }
+  #root{max-width:720px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding:28px 20px 60px;}
+
+  /* ---------- header ---------- */
+  .brand{display:flex; align-items:center; justify-content:space-between; margin-bottom:28px;}
+  .brand-name{font-family:'Noto Serif KR',serif; font-weight:900; font-size:15px; letter-spacing:.12em; opacity:.55;}
+  .tier-tag{font-size:11px; padding:5px 10px; border-radius:999px; border:1px solid var(--border,#ddd); opacity:.8;}
+
+  /* ---------- select screen ---------- */
+  .hero{margin-bottom:30px;}
+  .hero h1{font-family:'Noto Serif KR',serif; font-weight:900; font-size:clamp(28px,6vw,40px); line-height:1.25; letter-spacing:-.01em;}
+  .hero p{margin-top:10px; font-size:14.5px; opacity:.65; line-height:1.6;}
+
+  .tier-grid{display:grid; grid-template-columns:1fr; gap:12px;}
+  .tier-card{
+    display:flex; gap:16px; align-items:flex-start;
+    text-align:left; cursor:pointer; border:none;
+    background:#fff; border:1px solid #e6e6e2; border-radius:var(--radius);
+    padding:18px 18px; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    font-family:inherit; color:#1c1c1c;
+  }
+  .tier-card:hover{transform:translateY(-3px); box-shadow:var(--shadow); border-color:#c9c9c0;}
+  .tier-icon{flex:0 0 auto; width:44px; height:44px;}
+  .tier-body h3{font-size:16.5px; font-weight:800; margin-bottom:3px;}
+  .tier-body .sub{font-size:12px; opacity:.55; margin-bottom:6px;}
+  .tier-body .desc{font-size:12.5px; opacity:.7; line-height:1.5;}
+
+  /* ---------- loading ---------- */
+  .loading-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; min-height:50vh;}
+  .spinner{width:34px; height:34px; border-radius:50%; border:3px solid rgba(0,0,0,.12); border-top-color:var(--accent,#333); animation:spin 0.9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-text{font-size:13px; opacity:.6;}
+
+  /* ---------- interview screen ---------- */
+  .progress-row{display:flex; align-items:center; gap:10px; margin-bottom:22px;}
+  .progress-track{flex:1; height:5px; border-radius:999px; background:rgba(0,0,0,.08); overflow:hidden;}
+  .progress-fill{height:100%; background:var(--accent,#333); border-radius:999px; transition:width .5s ease;}
+  .progress-num{font-family:'Inter',sans-serif; font-size:12px; font-weight:600; opacity:.6; white-space:nowrap;}
+
+  .interviewer-card{
+    background:var(--card-bg,#fff); border:1px solid var(--border,#e6e6e2); border-radius:var(--radius);
+    padding:22px; margin-bottom:16px; box-shadow:var(--shadow);
+  }
+  .interviewer-name{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; opacity:.55; margin-bottom:10px; letter-spacing:.02em;}
+  .interviewer-name .dot{width:6px; height:6px; border-radius:50%; background:var(--accent,#333);}
+  .reaction{font-size:13px; opacity:.6; margin-bottom:10px; font-style:italic;}
+  .question-text{font-family:var(--font-display,'Noto Sans KR'); font-weight:700; font-size:19px; line-height:1.55; letter-spacing:-.01em;}
+
+  .answer-box{margin-top:6px;}
+  textarea{
+    width:100%; min-height:120px; resize:vertical; border-radius:var(--radius);
+    border:1.5px solid var(--border,#ddd); padding:14px; font-family:inherit; font-size:14.5px;
+    line-height:1.6; outline:none; transition:border-color .15s ease;
+    background:var(--input-bg,#fff); color:inherit;
+  }
+  textarea:focus{border-color:var(--accent,#333);}
+  .submit-row{display:flex; justify-content:flex-end; margin-top:12px;}
+  button.primary{
+    font-family:inherit; font-weight:700; font-size:14px; cursor:pointer;
+    background:var(--accent,#222); color:var(--accent-contrast,#fff);
+    border:none; border-radius:999px; padding:12px 26px;
+    transition:opacity .15s ease, transform .15s ease;
+  }
+  button.primary:disabled{opacity:.35; cursor:not-allowed;}
+  button.primary:not(:disabled):hover{transform:translateY(-1px);}
+  button.ghost{
+    font-family:inherit; font-size:13px; background:none; border:1px solid var(--border,#ddd);
+    color:inherit; border-radius:999px; padding:10px 20px; cursor:pointer; opacity:.7;
+  }
+
+  /* ---------- result screen ---------- */
+  .result-wrap{flex:1; display:flex; flex-direction:column; justify-content:center; min-height:60vh;}
+  .verdict-badge{
+    display:inline-block; font-family:'Noto Serif KR',serif; font-weight:900; font-size:13px;
+    letter-spacing:.15em; padding:8px 16px; border-radius:999px; margin-bottom:18px;
+  }
+  .verdict-badge.pass{background:rgba(30,140,90,.12); color:#1e8c5a;}
+  .verdict-badge.fail{background:rgba(190,60,60,.12); color:#be3c3c;}
+  .result-title{font-family:var(--font-display,'Noto Serif KR'); font-weight:900; font-size:clamp(26px,6vw,34px); line-height:1.3; margin-bottom:16px;}
+  .result-score{font-family:'Inter',sans-serif; font-size:13px; opacity:.55; margin-bottom:20px;}
+  .result-message{
+    background:var(--card-bg,#fff); border:1px solid var(--border,#e6e6e2); border-radius:var(--radius);
+    padding:22px; font-size:14.5px; line-height:1.75; white-space:pre-wrap; box-shadow:var(--shadow); margin-bottom:24px;
+  }
+  .result-actions{display:flex; gap:10px;}
+
+  .error-box{background:#fff3f0; border:1px solid #f0c8bd; border-radius:var(--radius); padding:18px; font-size:13.5px; color:#8a3a24;}
+
+  /* =====================================================
+     TIER THEMES
+  ===================================================== */
+
+  /* 소기업 — 스타트업, 정 많고 캐주얼 */
+  body[data-tier="startup"]{
+    --bg:#FFF6EC; --text:#3A2B18; --accent:#FF6B35; --accent-contrast:#fff;
+    --border:#F0DCC4; --card-bg:#FFFDF9; --input-bg:#FFFDF9;
+    --font-display:'Gaegu', sans-serif;
+    background-image: radial-gradient(circle at 15% 8%, rgba(255,107,53,.08), transparent 40%),
+                       radial-gradient(circle at 90% 90%, rgba(255,107,53,.06), transparent 45%);
+  }
+  body[data-tier="startup"] .hero h1, body[data-tier="startup"] .brand-name{font-family:'Gaegu',sans-serif;}
+  body[data-tier="startup"] .question-text{font-size:21px;}
+
+  /* 중소기업 — 실무형, 담백한 사무 톤 */
+  body[data-tier="sme"]{
+    --bg:#EFF3F3; --text:#20302E; --accent:#2A9D8F; --accent-contrast:#fff;
+    --border:#D6E1DF; --card-bg:#ffffff; --input-bg:#ffffff;
+    --font-display:'Nanum Gothic', sans-serif;
+  }
+  body[data-tier="sme"] .hero h1, body[data-tier="sme"] .brand-name{font-family:'Nanum Gothic',sans-serif;}
+
+  /* 중견기업 — 체계적, 절제된 포멀 */
+  body[data-tier="midsize"]{
+    --bg:#F3F2EE; --text:#1B2233; --accent:#1B3358; --accent-contrast:#fff;
+    --border:#DAD7CC; --card-bg:#ffffff; --input-bg:#ffffff;
+    --font-display:'Noto Serif KR', serif;
+  }
+  body[data-tier="midsize"] .hero h1, body[data-tier="midsize"] .brand-name{font-family:'Noto Serif KR',serif;}
+  body[data-tier="midsize"] .tier-card{border-radius:4px;}
+  body[data-tier="midsize"] .interviewer-card, body[data-tier="midsize"] .result-message{border-radius:4px;}
+  body[data-tier="midsize"] textarea{border-radius:4px;}
+  body[data-tier="midsize"] button.primary{border-radius:4px;}
+
+  /* 대기업 — 압도적, 금색 포인트, 다크 */
+  body[data-tier="major"]{
+    --bg:#0B1220; --text:#EDEAE0; --accent:#C9A227; --accent-contrast:#0B1220;
+    --border:#2A3448; --card-bg:#111A2C; --input-bg:#0F1727;
+    --font-display:'Noto Serif KR', serif;
+    background-image: linear-gradient(180deg, rgba(201,162,39,.06), transparent 30%);
+  }
+  body[data-tier="major"] .hero h1, body[data-tier="major"] .brand-name{font-family:'Noto Serif KR',serif; font-weight:900; letter-spacing:.01em;}
+  body[data-tier="major"] .tier-tag{opacity:.7;}
+  body[data-tier="major"] .question-text{letter-spacing:.01em;}
+  body[data-tier="major"] textarea::placeholder{color:#6b7690;}
+  body[data-tier="major"] .verdict-badge.pass{background:rgba(201,162,39,.15); color:#C9A227;}
+  body[data-tier="major"] .verdict-badge.fail{background:rgba(190,90,90,.15); color:#d98a8a;}
+
+  /* 글로벌기업 — 미니멀, 인터내셔널 */
+  body[data-tier="global"]{
+    --bg:#FAFAF9; --text:#151515; --accent:#1454F0; --accent-contrast:#fff;
+    --border:#E4E4E0; --card-bg:#ffffff; --input-bg:#ffffff;
+    --font-display:'Inter', 'Noto Sans KR', sans-serif;
+  }
+  body[data-tier="global"] .hero h1{font-family:'Inter',sans-serif; font-weight:800; letter-spacing:-.02em;}
+  body[data-tier="global"] .brand-name{font-family:'Inter',sans-serif; font-weight:800;}
+  body[data-tier="global"] .tier-card{border-radius:10px;}
+  body[data-tier="global"] .interviewer-card, body[data-tier="global"] .result-message{border-radius:10px;}
+
+  @media (max-width:480px){
+    .tier-card{padding:14px;}
+    .interviewer-card{padding:18px;}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* =========================================================
+   TIER DEFINITIONS
+========================================================= */
+const TIERS = {
+  startup: {
+    label: "소기업",
+    sub: "스타트업 / 초기 팀",
+    desc: "대표님이 직접 면접을 봅니다. 편하게, 근데 진심으로.",
+    icon: `<svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="18" stroke="#FF6B35" stroke-width="2.5" stroke-dasharray="4 5"/><circle cx="22" cy="22" r="6" fill="#FF6B35"/></svg>`,
+    interviewer: "대표 정찬희",
+    persona: `당신은 8명 규모 초기 스타트업의 대표 '정찬희'입니다. 반말과 존댓말을 섞어 쓰는 편안하고 다정한 말투를 씁니다. "~네요", "오 진짜요?", "저도 그랬어요ㅎㅎ" 같은 친근한 리액션을 씁니다. 격식보다는 지원자의 태도, 에너지, 함께 일하고 싶은 사람인지를 중요하게 봅니다. 이모티콘이나 웃음(ㅎㅎ)을 가끔 섞어도 됩니다.`,
+    resultTone: `합격이면 팀에 합류하게 되어 진심으로 반갑다는 느낌을 편안한 말투로, 불합격이면 미안하지만 솔직하게 이유를 짚어주는 다정한 말투로 작성하세요.`
+  },
+  sme: {
+    label: "중소기업",
+    sub: "실무 중심 조직",
+    desc: "인사팀 과장님이 실무 역량 위주로 꼼꼼히 확인합니다.",
+    icon: `<svg viewBox="0 0 44 44" fill="none"><rect x="6" y="6" width="32" height="32" rx="8" stroke="#2A9D8F" stroke-width="2.5"/><path d="M15 22h14M22 15v14" stroke="#2A9D8F" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+    interviewer: "인사팀 박도현 과장",
+    persona: `당신은 중소기업 인사팀의 '박도현 과장'입니다. 정중한 존댓말을 쓰지만 실무적이고 담백합니다. 감정적인 수식어 없이 "네, 알겠습니다", "구체적으로 말씀해주시겠어요?" 처럼 효율적으로 대화합니다. 지원자의 실무 능력, 즉시 투입 가능성, 책임감을 중요하게 봅니다.`,
+    resultTone: `실무적이고 담백한 존댓말로, 구체적인 업무 역량 관점에서 합격/불합격 사유를 명확히 전달하세요. 군더더기 없이 간결하게.`
+  },
+  midsize: {
+    label: "중견기업",
+    sub: "체계화된 조직",
+    desc: "인사팀장이 정해진 절차에 따라 구조적으로 평가합니다.",
+    icon: `<svg viewBox="0 0 44 44" fill="none"><polygon points="22,4 38,13 38,31 22,40 6,31 6,13" stroke="#1B3358" stroke-width="2.5"/></svg>`,
+    interviewer: "인사팀장 이서연",
+    persona: `당신은 중견기업 인사팀장 '이서연'입니다. 정중하고 격식 있는 존댓말을 사용하며, 절차와 논리를 중시합니다. "다음 질문 드리겠습니다", "말씀 잘 들었습니다" 처럼 정형화된 표현을 사용합니다. 지원자의 논리력, 조직 적합성, 장기 근속 가능성을 중요하게 평가합니다.`,
+    resultTone: `격식 있고 절제된 존댓말로, 조직의 평가 기준(논리력, 적합성, 안정성)에 따라 합격/불합격 사유를 체계적으로 설명하세요.`
+  },
+  major: {
+    label: "대기업",
+    sub: "그룹 임원 면접",
+    desc: "임원진이 압박감 있는 톤으로 날카롭게 질문합니다.",
+    icon: `<svg viewBox="0 0 44 44" fill="none"><polygon points="22,3 41,22 22,41 3,22" stroke="#C9A227" stroke-width="2.5"/><circle cx="22" cy="22" r="4" fill="#C9A227"/></svg>`,
+    interviewer: "전략기획실 김태윤 상무",
+    persona: `당신은 대기업 전략기획실의 '김태윤 상무'입니다. 격식을 매우 중시하는 하십시오체 존댓말을 사용하며, 어조가 무겁고 위압감이 있습니다. 지원자의 답변에 즉각적인 반박이나 압박 질문을 던지기도 합니다("그렇게 확신하시는 근거가 있습니까?"). 논리의 허점을 예리하게 짚습니다. 그룹 차원의 스케일, 리더십 자질, 위기 대응력을 중요하게 평가합니다.`,
+    resultTone: `무게감 있고 격식 있는 하십시오체로, 그룹의 기준에서 지원자의 리더십과 위기 대응력을 평가한 근거를 제시하며 합격/불합격을 통보하세요. 다소 근엄하고 압도적인 어조를 유지하세요.`
+  },
+  global: {
+    label: "글로벌기업",
+    sub: "해외 본사 / 다국적",
+    desc: "글로벌 HR이 한영을 섞어가며 자유롭게 대화합니다.",
+    icon: `<svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="18" stroke="#1454F0" stroke-width="2.5"/><ellipse cx="22" cy="22" rx="8" ry="18" stroke="#1454F0" stroke-width="2"/><path d="M4 22h36" stroke="#1454F0" stroke-width="2"/></svg>`,
+    interviewer: "Global HR — Claire Han",
+    persona: `당신은 글로벌 기업 HR 담당자 'Claire Han'입니다. 한국어 문장 안에 자연스러운 영어 비즈니스 표현을 섞어 씁니다 (예: "그 부분에 대해 조금 더 elaborate 해주시겠어요?", "Great, that's really helpful."). 캐주얼하지만 프로페셔널한 존댓말을 씁니다. 지원자의 글로벌 마인드셋, 문화적 유연성, 커뮤니케이션 능력을 중요하게 봅니다.`,
+    resultTone: `자연스럽게 한영을 섞은 프로페셔널하고 친근한 톤으로, 글로벌 조직 관점(문화 적응력, 커뮤니케이션, 오너십)에서 합격/불합격 사유를 설명하세요.`
+  }
+};
+
+/* =========================================================
+   STATE
+========================================================= */
+const state = {
+  phase: "select",   // select | loading | interview | result | error
+  tierKey: null,
+  history: [],        // [{question, reaction, answer}]
+  currentQuestion: null,
+  currentReaction: "",
+  errorMsg: "",
+  result: null
+};
+
+const TOTAL_QUESTIONS = 10;
+
+/* =========================================================
+   CLAUDE API CALL (via own Vercel proxy — /api/interview)
+========================================================= */
+async function askClaude(systemPrompt, userPrompt){
+  const response = await fetch("/api/interview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ system: systemPrompt, prompt: userPrompt })
+  });
+  const data = await response.json();
+  if(!response.ok){
+    throw new Error(data.error || ("API 요청 실패 (" + response.status + ")"));
+  }
+  return data;
+}
+
+function buildTranscript(){
+  return state.history.map((h,i) => `Q${i+1}. ${h.question}\nA${i+1}. ${h.answer}`).join("\n\n");
+}
+
+async function fetchNextQuestion(){
+  const tier = TIERS[state.tierKey];
+  const qNum = state.history.length + 1;
+  const isFirst = qNum === 1;
+  const system = `${tier.persona}\n\n당신은 지금 채용 면접을 진행 중입니다. 반드시 순수 JSON 객체 하나만 응답하세요. 다른 텍스트, 설명, 마크다운 코드블록을 절대 포함하지 마세요.\n형식: {"reaction": "직전 답변에 대한 한두 문장 리액션(1번 질문이면 빈 문자열)", "question": "면접 질문 하나"}`;
+  const userPrompt = isFirst
+    ? `면접을 시작합니다. 총 ${TOTAL_QUESTIONS}개 질문 중 첫 번째(1/${TOTAL_QUESTIONS}) 질문을 자기소개 또는 지원동기 관련으로 던져주세요.`
+    : `지금까지의 면접 대화입니다:\n\n${buildTranscript()}\n\n이제 ${qNum}번째(${qNum}/${TOTAL_QUESTIONS}) 질문을 하세요. 직전 답변 내용을 반영해서 자연스럽게 이어지거나 새로운 역량을 파고드는 질문으로 구성하세요. 질문 유형(직무역량/인성/상황판단/압박/포부 등)이 10개 전체에서 다양하게 섞이도록 하세요.`;
+
+  const data = await askClaude(system, userPrompt);
+  state.currentQuestion = data.question;
+  state.currentReaction = data.reaction || "";
+}
+
+async function fetchVerdict(){
+  const tier = TIERS[state.tierKey];
+  const system = `${tier.persona}\n\n${tier.resultTone}\n\n반드시 순수 JSON 객체 하나만 응답하세요. 다른 텍스트나 마크다운을 포함하지 마세요.\n형식: {"result": "합격" 또는 "탈락", "score": 0-100 사이 정수, "message": "합불 통보 메시지(3~6문장, 캐릭터의 말투 그대로)"}`;
+  const userPrompt = `아래는 10개 질문에 대한 지원자의 전체 답변입니다. 답변들의 조합(일관성, 깊이, 태도, 논리)을 종합적으로 평가하여 합격 또는 탈락을 결정하고, 그 이유를 담은 통보 메시지를 작성하세요.\n\n${buildTranscript()}`;
+  const data = await askClaude(system, userPrompt);
+  state.result = data;
+}
+
+/* =========================================================
+   RENDER
+========================================================= */
+const root = document.getElementById("root");
+
+function render(){
+  document.body.setAttribute("data-tier", state.tierKey || "");
+  if(state.phase === "select") return renderSelect();
+  if(state.phase === "loading") return renderLoading();
+  if(state.phase === "interview") return renderInterview();
+  if(state.phase === "result") return renderResult();
+  if(state.phase === "error") return renderError();
+}
+
+function renderSelect(){
+  root.innerHTML = `
+    <div class="brand">
+      <div class="brand-name">면접의 정석</div>
+    </div>
+    <div class="hero">
+      <h1>어떤 회사의<br/>면접을 보시겠어요?</h1>
+      <p>기업 규모에 따라 면접관의 말투와 질문 방식이 완전히 달라집니다.<br/>10개의 질문에 답하고, 합격 여부를 확인해보세요.</p>
+    </div>
+    <div class="tier-grid">
+      ${Object.entries(TIERS).map(([key, t]) => `
+        <button class="tier-card" data-key="${key}">
+          <div class="tier-icon">${t.icon}</div>
+          <div class="tier-body">
+            <h3>${t.label}</h3>
+            <div class="sub">${t.sub} · ${t.interviewer}</div>
+            <div class="desc">${t.desc}</div>
+          </div>
+        </button>
+      `).join("")}
+    </div>
+  `;
+  root.querySelectorAll(".tier-card").forEach(btn => {
+    btn.addEventListener("click", () => startGame(btn.dataset.key));
+  });
+}
+
+function renderLoading(){
+  root.innerHTML = `
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <div class="loading-text">${state.loadingText || "면접관이 질문을 준비하고 있습니다..."}</div>
+    </div>
+  `;
+}
+
+function renderInterview(){
+  const tier = TIERS[state.tierKey];
+  const qNum = state.history.length + 1;
+  const pct = Math.round(((qNum-1) / TOTAL_QUESTIONS) * 100);
+  root.innerHTML = `
+    <div class="brand">
+      <div class="brand-name">면접의 정석</div>
+      <div class="tier-tag">${tier.label}</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-num">${qNum} / ${TOTAL_QUESTIONS}</div>
+    </div>
+    <div class="interviewer-card">
+      <div class="interviewer-name"><span class="dot"></span>${tier.interviewer}</div>
+      ${state.currentReaction ? `<div class="reaction">${escapeHtml(state.currentReaction)}</div>` : ""}
+      <div class="question-text">${escapeHtml(state.currentQuestion)}</div>
+    </div>
+    <div class="answer-box">
+      <textarea id="answerInput" placeholder="답변을 입력하세요..."></textarea>
+      <div class="submit-row">
+        <button class="primary" id="submitBtn" disabled>${qNum === TOTAL_QUESTIONS ? "면접 마치기" : "답변 제출"}</button>
+      </div>
+    </div>
+  `;
+  const input = document.getElementById("answerInput");
+  const btn = document.getElementById("submitBtn");
+  input.addEventListener("input", () => { btn.disabled = input.value.trim().length === 0; });
+  btn.addEventListener("click", () => submitAnswer(input.value.trim()));
+  input.focus();
+}
+
+function renderResult(){
+  const tier = TIERS[state.tierKey];
+  const r = state.result;
+  const passed = r.result === "합격";
+  root.innerHTML = `
+    <div class="brand">
+      <div class="brand-name">면접의 정석</div>
+      <div class="tier-tag">${tier.label}</div>
+    </div>
+    <div class="result-wrap">
+      <div class="verdict-badge ${passed ? "pass" : "fail"}">${passed ? "PASS · 합격" : "FAIL · 탈락"}</div>
+      <div class="result-title">${tier.interviewer}님의 최종 결과</div>
+      <div class="result-score">종합 평가 점수 · ${r.score} / 100</div>
+      <div class="result-message">${escapeHtml(r.message)}</div>
+      <div class="result-actions">
+        <button class="primary" id="retryBtn">다른 기업 면접 보기</button>
+        <button class="ghost" id="sameBtn">같은 기업 다시 도전</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("retryBtn").addEventListener("click", resetToSelect);
+  document.getElementById("sameBtn").addEventListener("click", () => startGame(state.tierKey));
+}
+
+function renderError(){
+  root.innerHTML = `
+    <div class="brand"><div class="brand-name">면접의 정석</div></div>
+    <div class="loading-wrap">
+      <div class="error-box">⚠ 오류가 발생했습니다: ${escapeHtml(state.errorMsg)}</div>
+      <button class="primary" id="retryErrBtn">다시 시도</button>
+    </div>
+  `;
+  document.getElementById("retryErrBtn").addEventListener("click", () => {
+    if(state.history.length === 0) resetToSelect();
+    else { state.phase = "interview"; render(); }
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+/* =========================================================
+   FLOW
+========================================================= */
+async function startGame(key){
+  state.tierKey = key;
+  state.history = [];
+  state.currentQuestion = null;
+  state.currentReaction = "";
+  state.result = null;
+  state.phase = "loading";
+  state.loadingText = TIERS[key].interviewer + " 님이 입장하고 있습니다...";
+  render();
+  try{
+    await fetchNextQuestion();
+    state.phase = "interview";
+    render();
+  }catch(e){
+    state.errorMsg = e.message;
+    state.phase = "error";
+    render();
+  }
+}
+
+async function submitAnswer(answerText){
+  state.history.push({ question: state.currentQuestion, answer: answerText });
+  const isLast = state.history.length >= TOTAL_QUESTIONS;
+  state.phase = "loading";
+  state.loadingText = isLast ? "모든 답변을 종합 평가하고 있습니다..." : "다음 질문을 준비하고 있습니다...";
+  render();
+  try{
+    if(isLast){
+      await fetchVerdict();
+      state.phase = "result";
+    } else {
+      await fetchNextQuestion();
+      state.phase = "interview";
+    }
+    render();
+  }catch(e){
+    state.errorMsg = e.message;
+    state.phase = "error";
+    render();
+  }
+}
+
+function resetToSelect(){
+  state.phase = "select";
+  state.tierKey = null;
+  state.history = [];
+  state.result = null;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "interview-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "기업 등급별 AI 면접 시뮬레이션 게임"
+}
